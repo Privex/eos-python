@@ -1,0 +1,17 @@
+dist: bionic
+language: python
+cache: pip
+python:
+  - "3.6"
+  - "3.7"
+  - "3.7-dev"
+  - "3.8-dev"
+  - "nightly"
+install:
+  - pip install -U pipenv
+  - pipenv install -d --skip-lock
+
+script: pipenv run pytest --cov=./privex -v -rxXs tests.py
+after_success:
+  - codecov
+
