@@ -1,5 +1,5 @@
+from collections import OrderedDict
 from decimal import Decimal
-from typing import OrderedDict
 
 import pytest
 from privex.helpers import DictObject, empty
