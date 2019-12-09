@@ -11,7 +11,7 @@ install:
   - pip install -U pipenv
   - pipenv install -d --skip-lock
 
-script: pipenv run pytest --cov=./privex -v -rxXs tests.py
+script: pipenv run pytest --cov=./privex -v -rxXs
 after_success:
   - codecov
 
