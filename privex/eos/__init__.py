@@ -68,7 +68,7 @@ def _setup_logging(level=logging.WARNING):
 log = _setup_logging()
 name = 'eos'
 
-VERSION = '0.5.0'
+VERSION = '0.6.0'
 
 
 

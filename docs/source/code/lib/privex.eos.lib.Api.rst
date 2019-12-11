@@ -23,6 +23,7 @@ Methods
     ~Api.get_account
     ~Api.get_block
     ~Api.get_block_range
+    ~Api.generate_block_range
     ~Api.get_currency_balance
     ~Api.get_info
     ~Api.get_supported_apis

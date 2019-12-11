@@ -21,8 +21,9 @@ Async EOS API client allowing for high speed block importing
 import asyncio
 import time
 import random
+from asyncio import Future
 from collections import OrderedDict
-from typing import Union, Optional, Dict, List
+from typing import Union, Optional, Dict, List, AsyncGenerator, Iterator, Awaitable
 import httpx
 from privex.helpers import DictObject
 from privex.helpers.asyncx import run_sync
@@ -203,13 +204,53 @@ class Api:
         return EOSBlock.from_dict(b)
 
     async def get_block_range(self, start: int, end: int) -> Dict[int, EOSBlock]:
+        """
+        Loads all blocks between and including ``start`` and ``end``, and returns them as an ordered dictionary mapping block numbers
+        to block objects.
+        
+            >>> blocks = await Api().get_block_range(1000, 2000)
+            >>> blocks[1500].block_num
+            1500
+            >>> blocks[1500].timestamp
+            '2018-06-09T12:10:43.000'
+        
+            
+        :param int start: Load blocks starting from this block
+        :param int end: Load blocks until this block (results include the ``end`` block)
+        :return Dict[int,EOSBlock] blocks: An :class:`.OrderedDict` mapping block numbers to :class:`.EOSBlock` objects.
+        
+        """
         coros = {}
         for i in range(start, end + 1):
             coros[i] = self.get_block(i)
         
         results = await asyncio.gather(*coros.values())
         return OrderedDict(zip(coros.keys(), results))
-    
+
+    def generate_block_range(self, start: int, end: int) -> Iterator[Awaitable[EOSBlock]]:
+        """
+        **NOT A COROUTINE** - Returns an iterator which outputs blocks as they're loaded (not in order).
+        
+        
+            >>> async def load_blocks():
+            ...     for block_coro in Api().generate_block_range(1000, 2000):
+            ...         block = await block_coro
+            ...         print(block.block_num)
+            ...         print(block.timestamp)
+            ...
+        
+        
+        :param int start: Load blocks starting from this block
+        :param int end: Load blocks until this block (results include the ``end`` block)
+        :return Iterator blocks: An iterator of :class:`.EOSBlock` objects as they're returned from the RPC nodes (NOT ORDERED).
+        """
+        loop = asyncio.get_event_loop()
+        coros = []
+        for i in range(start, end + 1):
+            coros.append(loop.create_task(self.get_block(i)))
+        
+        return asyncio.as_completed(coros)
+
     async def get_info(self) -> dict:
         return await self._call(self.endpoints['get_info'])
 
@@ -334,7 +375,15 @@ class Api:
         return c
     
     def __enter__(self):
+        if not self.client:
+            self.client = httpx.Client(timeout=30)
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.client.close()
+        self.client = None
+
+    def __del__(self):
+        if hasattr(self, 'client') and self.client is not None:
+            asyncio.run_coroutine_threadsafe(self.client.close(), loop=asyncio.get_event_loop())
+
